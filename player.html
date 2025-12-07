@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valorant Player Performance Analysis (2021-2025)</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #0f1923;
+            color: #ece8e1;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background-color: #ff4655;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .back-button:hover {
+            background-color: #ff6b7a;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            border-bottom: 1px solid #ff4655;
+        }
+        
+        h1 {
+            color: #ff4655;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #ece8e1;
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+        
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #1a2330;
+            border-radius: 8px;
+        }
+        
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #ff4655;
+        }
+        
+        select, input, button {
+            width: 100%;
+            padding: 10px;
+            background-color: #0f1923;
+            border: 1px solid #38404a;
+            border-radius: 4px;
+            color: #ece8e1;
+            font-size: 1rem;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: #ff4655;
+        }
+        
+        select:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        button {
+            background-color: #ff4655;
+            color: #ece8e1;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #e03e4c;
+        }
+        
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background-color: #1a2330;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card h3 {
+            color: #ff4655;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: #ece8e1;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+            border-radius: 50%;
+            width: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .refresh-btn:hover {
+            background-color: rgba(255, 70, 85, 0.2);
+            color: #ff4655;
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin-top: 15px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .data-table th {
+            background-color: #ff4655;
+            color: #0f1923;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        .data-table th.sortable {
+            cursor: pointer;
+            position: relative;
+            }
+
+        .data-table th.sortable::after {
+            content: "⇅";
+            font-size: 0.8rem;
+            margin-left: 6px;
+            opacity: 0.6;
+        }
+
+        .data-table th.sortable.sort-asc::after {
+            content: "▲";
+        }
+        .data-table th.sortable.sort-desc::after {
+            content: "▼";
+        }
+
+        
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #38404a;
+        }
+        
+        .data-table tr:hover {
+            background-color: #252e3a;
+        }
+        
+        .rating-high {
+            color: #0acf83;
+            font-weight: bold;
+        }
+        
+        .rating-medium {
+            color: #ffa500;
+            font-weight: bold;
+        }
+        
+        .rating-low {
+            color: #ff4655;
+            font-weight: bold;
+        }
+        
+        .axis text {
+            fill: #ece8e1;
+            font-size: 12px;
+        }
+        
+        .axis path,
+        .axis line {
+            stroke: #38404a;
+        }
+        
+        .grid line {
+            stroke: #38404a;
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+        
+        .grid path {
+            stroke-width: 0;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background-color: rgba(26, 35, 48, 0.9);
+            border: 1px solid #38404a;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 14px;
+            color: #ece8e1;
+            z-index: 10;
+            opacity: 0;
+        }
+        
+        .radar-grid {
+            stroke: #38404a;
+            stroke-width: 1;
+            fill: none;
+        }
+        
+        .radar-area {
+            fill-opacity: 0.5;
+            stroke-width: 2;
+        }
+        
+        .radar-point {
+            fill: #ff4655;
+            r: 4;
+        }
+        
+        .radar-point:hover {
+            r: 6;
+            fill: #0acf83;
+        }
+        
+        .player-marker {
+            fill: #ff4655;
+            r: 5;
+            cursor: pointer;
+        }
+        
+        .player-marker.highlighted {
+            fill: #0acf83;
+            r: 8;
+            stroke: #ece8e1;
+            stroke-width: 2;
+        }
+        
+        .player-marker.selected {
+            fill: #ffa500;
+            r: 8;
+            stroke: #ece8e1;
+            stroke-width: 2;
+        }
+        
+        .heatmap-cell {
+            stroke: #0f1923;
+            stroke-width: 1;
+            cursor: pointer;
+        }
+        
+        .heatmap-cell:hover {
+            stroke: #ece8e1;
+            stroke-width: 2;
+        }
+        
+        .heatmap-cell.selected {
+            stroke: #ffa500;
+            stroke-width: 3;
+        }
+        
+        .timeline-line {
+            fill: none;
+            stroke: #ff4655;
+            stroke-width: 2;
+        }
+        
+        .timeline-point {
+            fill: #ff4655;
+            r: 4;
+            cursor: pointer;
+        }
+        
+        .timeline-point:hover {
+            r: 6;
+            fill: #0acf83;
+        }
+        
+        .timeline-point.selected {
+            fill: #ffa500;
+            r: 8;
+            stroke: #ece8e1;
+            stroke-width: 2;
+        }
+        
+        .scatter-legend {
+            font-size: 12px;
+            fill: #ece8e1;
+        }
+        
+        .scatter-guide-line {
+            stroke: #38404a;
+            stroke-dasharray: 5,5;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters {
+                flex-direction: column;
+            }
+            
+            .card h3 {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">← Back to Main</a>
+        
+        <header>
+            <h1>Valorant Player Performance Analysis (2021-2025)</h1>
+            <p class="subtitle">Advanced analytics for professional Valorant players across multiple years</p>
+        </header>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <label for="year-filter">Year</label>
+                <select id="year-filter">
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="team-filter">Team</label>
+                <select id="team-filter">
+                    <option value="">All Teams</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="player-filter">Player</label>
+                <select id="player-filter" disabled>
+                    <option value="">Select a team first</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="metric-filter">Primary Metric</label>
+                <select id="metric-filter">
+                    <option value="Rating">Rating</option>
+                    <option value="Average Combat Score">ACS</option>
+                    <option value="Average Damage Per Round">ADR</option>
+                    <option value="Kills Per Round">KPR</option>
+                    <option value="Headshot %">Headshot %</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="comparison-filter">Comparison Metric</label>
+                <select id="comparison-filter">
+                    <option value="Average Damage Per Round">ADR</option>
+                    <option value="Rating">Rating</option>
+                    <option value="Average Combat Score">ACS</option>
+                    <option value="Kills Per Round">KPR</option>
+                    <option value="Headshot %">Headshot %</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="stats-container">
+            <div class="card">
+                <h3>Player Ability Radar</h3>
+                <div id="radar-chart" class="chart-container"></div>
+            </div>
+            
+            <div class="card">
+                <h3>Performance Comparison</h3>
+                <div id="scatter-chart" class="chart-container"></div>
+            </div>
+        </div>
+        
+        <div class="stats-container">
+            <div class="card">
+                <h3>Agent Performance Heatmap</h3>
+                <div id="heatmap-chart" class="chart-container"></div>
+            </div>
+            
+            <div class="card">
+                <h3>Performance Timeline</h3>
+                <div id="timeline-chart" class="chart-container"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3>
+                Player Data Table
+                <button class="refresh-btn" title="Show All Data">↻</button>
+            </h3>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Team</th>
+                            <th>Agent</th>
+                            <th>Tournament</th>
+
+                            <th class="sortable" data-sort-key="Rating">Rating</th>
+                            <th class="sortable" data-sort-key="K/D">K/D</th>
+                            <th class="sortable" data-sort-key="ACS">ACS</th>
+                            <th class="sortable" data-sort-key="Headshot %">Headshot %</th>
+                            <th class="sortable" data-sort-key="ADR">ADR</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="table-body">
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let playerData = [];
+        let filteredData = [];
+        let tableData = [];
+        let currentSelection = {
+            type: null, // 'scatter', 'timeline', 'heatmap'
+            data: null
+        };
+        let sortConfig = {
+            key: null,        
+            direction: 'desc'
+        };
+
+        // DOM elements
+        const yearFilter = document.getElementById('year-filter');
+        const teamFilter = document.getElementById('team-filter');
+        const playerFilter = document.getElementById('player-filter');
+        const metricFilter = document.getElementById('metric-filter');
+        const comparisonFilter = document.getElementById('comparison-filter');
+        const refreshBtn = document.querySelector('.refresh-btn');
+
+
+        const tableHeaderCells = document.querySelectorAll('.data-table thead th.sortable');
+
+        tableHeaderCells.forEach(th => {
+            const key = th.dataset.sortKey;
+            if (!key) return;
+
+            th.addEventListener('click', () => {
+              
+                if (sortConfig.key === key) {
+                    sortConfig.direction = (sortConfig.direction === 'asc') ? 'desc' : 'asc';
+                } else {
+                    sortConfig.key = key;
+                    sortConfig.direction = 'desc'; 
+                }
+
+          
+                tableHeaderCells.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+                th.classList.add(sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+
+            
+                applySort();
+            });
+        });
+
+        
+        // Tooltip element (global)
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+        
+        // Load CSV data based on selected year
+        function loadData() {
+            const selectedYear = yearFilter.value;
+            const fileName = `data/players_stats_${selectedYear}.csv`;
+            
+            // Save current selections
+            const currentTeam = teamFilter.value;
+            const currentPlayer = playerFilter.value;
+            
+            d3.csv(fileName).then(function(data) {
+                console.log(`CSV for ${selectedYear} loaded successfully, rows:`, data.length);
+                playerData = data;
+                filteredData = [...playerData];
+                tableData = [...filteredData];
+                
+                // Initialize filters
+                initializeFilters();
+                
+                // Restore previous selections
+                if (currentTeam) {
+                    teamFilter.value = currentTeam;
+                    updatePlayerFilter();
+                    
+                    if (currentPlayer) {
+                        // Wait a moment for the player filter to update
+                        setTimeout(() => {
+                            playerFilter.value = currentPlayer;
+                            applyFilters();
+                        }, 100);
+                    } else {
+                        applyFilters();
+                    }
+                } else {
+                    applyFilters();
+                }
+                
+                // Render charts and table
+                renderCharts();
+                renderTable();
+            }).catch(function(error) {
+                console.error(`Error loading the CSV file for ${selectedYear}:`, error);
+                // Use sample data if CSV loading fails
+                console.log("Using sample data instead");
+                loadSampleData();
+            });
+        }
+        
+        // Initialize filter options
+        function initializeFilters() {
+            console.log("Initializing filters...");
+            
+            // Clear existing team options
+            teamFilter.innerHTML = '<option value="">All Teams</option>';
+            
+            // Get unique teams
+            const teams = [...new Set(playerData.map(d => d.Teams))].sort();
+            console.log("Teams found:", teams);
+            
+            // Populate team filter
+            teams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = team;
+                option.textContent = team;
+                teamFilter.appendChild(option);
+            });
+            
+            // Reset player filter
+            resetPlayerFilter();
+            
+            // Add filter event listeners
+            teamFilter.addEventListener('change', function() {
+                console.log("Team changed to:", this.value);
+                updatePlayerFilter();
+                applyFilters();
+            });
+            
+            playerFilter.addEventListener('change', function() {
+                console.log("Player changed to:", this.value);
+                applyFilters();
+            });
+            
+            metricFilter.addEventListener('change', function() {
+                console.log("Metric changed to:", this.value);
+                applyFilters();
+            });
+            
+            comparisonFilter.addEventListener('change', function() {
+                console.log("Comparison metric changed to:", this.value);
+                applyFilters();
+            });
+            
+            // Add event listener for refresh button
+            refreshBtn.addEventListener('click', function() {
+                resetToFullView();
+            });
+            
+            console.log("Filters initialized");
+        }
+        
+        // Reset to full view (show all data)
+        function resetToFullView() {
+            console.log("Resetting to full view");
+            
+            // Reset selection
+            currentSelection = { type: null, data: null };
+            
+            // Reset table data to show all filtered data
+            tableData = [...filteredData];
+            
+            // Re-render charts and table
+            renderCharts();
+            if (sortConfig.key) {
+                applySort();
+            } else {
+                renderTable();
+            }
+
+        }
+        
+        // Update player filter based on selected team
+        function updatePlayerFilter() {
+            const selectedTeam = teamFilter.value;
+            
+            console.log("Updating player filter for team:", selectedTeam);
+            
+            // Clear existing options
+            playerFilter.innerHTML = '';
+            
+            if (!selectedTeam || selectedTeam === "") {
+                console.log("No team selected, disabling player filter");
+                resetPlayerFilter();
+                return;
+            }
+            
+            // Get players from selected team
+            const teamPlayers = playerData.filter(d => d.Teams === selectedTeam);
+            const players = [...new Set(teamPlayers.map(d => d.Player))].sort();
+            
+            console.log("Found players for team", selectedTeam + ":", players);
+            
+            if (players.length === 0) {
+                console.log("No players found for team:", selectedTeam);
+                resetPlayerFilter();
+                return;
+            }
+            
+            // Enable and populate player filter
+            playerFilter.disabled = false;
+            
+            // Add "All Players" option
+            const allOption = document.createElement('option');
+            allOption.value = "";
+            allOption.textContent = "All Players";
+            playerFilter.appendChild(allOption);
+            
+            // Add player options
+            players.forEach(player => {
+                const option = document.createElement('option');
+                option.value = player;
+                option.textContent = player;
+                playerFilter.appendChild(option);
+            });
+            
+            console.log("Player filter updated successfully. Options:", playerFilter.options.length);
+        }
+        
+        // Reset player filter
+        function resetPlayerFilter() {
+            playerFilter.innerHTML = '';
+            playerFilter.disabled = true;
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "Select a team first";
+            playerFilter.appendChild(option);
+        }
+        
+        // Apply filters
+        function applyFilters() {
+            const teamFilterValue = teamFilter.value;
+            const playerFilterValue = playerFilter.value;
+            
+            console.log("Applying filters - Team:", teamFilterValue, "Player:", playerFilterValue);
+            
+            filteredData = playerData.filter(d => {
+                return (teamFilterValue === "" || d.Teams === teamFilterValue) &&
+                       (playerFilterValue === "" || d.Player === playerFilterValue);
+            });
+            
+            console.log("Filters applied. Result count:", filteredData.length);
+            
+            // Reset selection when filters change
+            currentSelection = { type: null, data: null };
+            tableData = [...filteredData];
+            
+            renderCharts();
+            renderTable();
+        }
+        
+        // Render charts
+        function renderCharts() {
+            renderRadarChart();
+            renderScatterChart();
+            renderHeatmapChart();
+            renderTimelineChart();
+        }
+        
+        // Render radar chart with interactive points
+        function renderRadarChart() {
+            const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+            const width = 500 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            const radius = Math.min(width, height) / 2;
+            
+            // Clear existing chart
+            d3.select("#radar-chart").html("");
+            
+            // Create SVG
+            const svg = d3.select("#radar-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${width/2 + margin.left},${height/2 + margin.top})`);
+            
+            // Get selected player data
+            const selectedPlayer = playerFilter.value;
+            if (!selectedPlayer || selectedPlayer === "") {
+                svg.append("text")
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("Select a player to view radar chart");
+                return;
+            }
+            
+            const playerStats = filteredData.filter(d => d.Player === selectedPlayer);
+            if (playerStats.length === 0) {
+                svg.append("text")
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("No data available for selected player");
+                return;
+            }
+            
+            // Aggregate player stats
+            const aggregatedStats = {};
+            playerStats.forEach(match => {
+                for (let key in match) {
+                    if (key === "Player" || key === "Teams" || key === "Agents" || key === "Tournament") continue;
+                    
+                    const value = parseFloat(match[key]);
+                    if (!isNaN(value)) {
+                        if (!aggregatedStats[key]) {
+                            aggregatedStats[key] = { sum: 0, count: 0 };
+                        }
+                        aggregatedStats[key].sum += value;
+                        aggregatedStats[key].count += 1;
+                    }
+                }
+            });
+            
+            // Calculate averages
+            const avgStats = {};
+            for (let key in aggregatedStats) {
+                avgStats[key] = aggregatedStats[key].sum / aggregatedStats[key].count;
+            }
+            
+            // Select metrics for radar chart
+            const metrics = [
+                { key: "Rating", name: "Rating", max: 2.0 },
+                { key: "Average Combat Score", name: "ACS", max: 300 },
+                { key: "Average Damage Per Round", name: "ADR", max: 200 },
+                { key: "Kills Per Round", name: "KPR", max: 1.0 },
+                { key: "Headshot %", name: "HS%", max: 50 },
+                { key: "Clutch Success %", name: "Clutch%", max: 100 }
+            ];
+            
+            // Scale function
+            const scale = d3.scaleLinear()
+                .domain([0, 1])
+                .range([0, radius]);
+            
+            // Draw circular grid
+            const levels = 5;
+            for (let i = 0; i < levels; i++) {
+                const levelRadius = scale(i / (levels - 1));
+                svg.append("circle")
+                    .attr("class", "radar-grid")
+                    .attr("r", levelRadius)
+                    .attr("fill", "none")
+                    .attr("stroke", "#38404a");
+            }
+            
+            // Draw axis lines
+            const angleSlice = (Math.PI * 2) / metrics.length;
+            metrics.forEach((metric, i) => {
+                const angle = angleSlice * i - Math.PI / 2;
+                const x = scale(1) * Math.cos(angle);
+                const y = scale(1) * Math.sin(angle);
+                
+                svg.append("line")
+                    .attr("class", "radar-grid")
+                    .attr("x1", 0)
+                    .attr("y1", 0)
+                    .attr("x2", x)
+                    .attr("y2", y);
+                
+                // Add metric labels
+                svg.append("text")
+                    .attr("class", "axis-label")
+                    .attr("x", (scale(1.1) * Math.cos(angle)))
+                    .attr("y", (scale(1.1) * Math.sin(angle)))
+                    .attr("text-anchor", "middle")
+                    .attr("dy", "0.35em")
+                    .attr("fill", "#ece8e1")
+                    .text(metric.name);
+                    
+            });
+            
+            // Normalize player data
+            const normalizedData = metrics.map(metric => {
+                const value = avgStats[metric.key] || 0;
+                const normalized = Math.min(value / metric.max, 1);
+                return {
+                    value: normalized,
+                    actual: value,
+                    metric: metric
+                };
+            });
+            
+            // Draw radar area
+            const line = d3.lineRadial()
+                .radius(d => scale(d.value))
+                .angle((d, i) => angleSlice * i - Math.PI / 2)
+                .curve(d3.curveLinearClosed);
+            
+            svg.append("path")
+                .datum(normalizedData)
+                .attr("class", "radar-area")
+                .attr("d", line)
+                .style("fill", "#ff4655")
+                .style("fill-opacity", 0.5)
+                .style("stroke", "#ff4655")
+                .style("stroke-width", 2);
+            
+            // Add interactive points
+            const points = svg.selectAll(".radar-point")
+                .data(normalizedData)
+                .enter()
+                .append("circle")
+                .attr("class", "radar-point")
+                .attr("r", 4)
+                .attr("cx", (d, i) => {
+                    const angle = angleSlice * i - Math.PI / 2;
+                    return scale(d.value) * Math.cos(angle);
+                })
+                .attr("cy", (d, i) => {
+                    const angle = angleSlice * i - Math.PI / 2;
+                    return scale(d.value) * Math.sin(angle);
+                });
+            
+            points.on("mouseover", function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`
+                    <strong>${d.metric.name}</strong><br/>
+                    Value: ${d.actual.toFixed(2)}<br/>
+                    Normalized: ${(d.value * 100).toFixed(0)}%
+                `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+        }
+        
+        // Render scatter chart with clickable points
+        function renderScatterChart() {
+            const margin = { top: 20, right: 30, bottom: 50, left: 60 };
+            const width = 500 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            
+            // Clear existing chart
+            d3.select("#scatter-chart").html("");
+            
+            // Create SVG
+            const svg = d3.select("#scatter-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            // Get metrics
+            const xMetric = metricFilter.value;
+            const yMetric = comparisonFilter.value;
+            const selectedPlayer = playerFilter.value;
+            
+            // Prepare data
+            const scatterData = filteredData.map(d => {
+                const xValue = parseFloat(d[xMetric]) || 0;
+                const yValue = parseFloat(d[yMetric]) || 0;
+                const player = d.Player;
+                
+                return {
+                    x: xValue,
+                    y: yValue,
+                    player: player,
+                    team: d.Teams,
+                    agent: d.Agents,
+                    tournament: d.Tournament,
+                    rating: parseFloat(d.Rating) || 0,
+                    isSelected: selectedPlayer && player === selectedPlayer,
+                    originalData: d
+                };
+            }).filter(d => !isNaN(d.x) && !isNaN(d.y));
+            
+            if (scatterData.length === 0) {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("No data available");
+                return;
+            }
+            
+            // Create scales
+            const xScale = d3.scaleLinear()
+                .domain(d3.extent(scatterData, d => d.x))
+                .range([0, width])
+                .nice();
+            
+            const yScale = d3.scaleLinear()
+                .domain(d3.extent(scatterData, d => d.y))
+                .range([height, 0])
+                .nice();
+            
+            // Add X axis
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale));
+            
+            // Add Y axis
+            svg.append("g")
+                .call(d3.axisLeft(yScale));
+            
+            // Add X axis label
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", height + margin.bottom - 5)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#ece8e1")
+                .text(xMetric);
+            
+            // Add Y axis label
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", -margin.left + 15)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#ece8e1")
+                .text(yMetric);
+            
+            // Add guide lines for average values
+            const avgX = d3.mean(scatterData, d => d.x);
+            const avgY = d3.mean(scatterData, d => d.y);
+            
+            // Vertical line for average X
+            svg.append("line")
+                .attr("class", "scatter-guide-line")
+                .attr("x1", xScale(avgX))
+                .attr("y1", 0)
+                .attr("x2", xScale(avgX))
+                .attr("y2", height);
+            
+            // Horizontal line for average Y
+            svg.append("line")
+                .attr("class", "scatter-guide-line")
+                .attr("x1", 0)
+                .attr("y1", yScale(avgY))
+                .attr("x2", width)
+                .attr("y2", yScale(avgY));
+            
+            // Add dots
+            const dots = svg.selectAll(".player-marker")
+                .data(scatterData)
+                .enter()
+                .append("circle")
+                .attr("class", d => {
+                    let className = "player-marker";
+                    if (d.isSelected) className += " highlighted";
+                    if (currentSelection.type === 'scatter' && currentSelection.data === d) {
+                        className += " selected";
+                    }
+                    return className;
+                })
+                .attr("cx", d => xScale(d.x))
+                .attr("cy", d => yScale(d.y))
+                .attr("r", d => {
+                    if (d.isSelected || (currentSelection.type === 'scatter' && currentSelection.data === d)) {
+                        return 8;
+                    }
+                    return 5;
+                })
+                .style("fill", d => {
+                    if (currentSelection.type === 'scatter' && currentSelection.data === d) {
+                        return "#ffa500";
+                    }
+                    return d.isSelected ? "#0acf83" : "#ff4655";
+                })
+                .style("opacity", d => {
+                    if (d.isSelected || (currentSelection.type === 'scatter' && currentSelection.data === d)) {
+                        return 1;
+                    }
+                    return 0.7;
+                });
+            
+            dots.on("mouseover", function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`
+                    <strong>${d.player}</strong><br/>
+                    ${xMetric}: ${d.x.toFixed(2)}<br/>
+                    ${yMetric}: ${d.y.toFixed(2)}<br/>
+                    Team: ${d.team}<br/>
+                    Agent: ${d.agent}<br/>
+                    Tournament: ${d.tournament}
+                `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            })
+            .on("click", function(event, d) {
+                // Hide tooltip on click
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", 0);
+                
+                // Update selection
+                if (currentSelection.type === 'scatter' && currentSelection.data === d) {
+                    // Deselect if already selected
+                    currentSelection = { type: null, data: null };
+                    tableData = [...filteredData];
+                } else {
+                    currentSelection = { type: 'scatter', data: d };
+                    // Filter table to show only this specific record
+                    tableData = [d.originalData];
+                }
+                
+                // Re-render charts to update selection states
+                renderScatterChart();
+                renderTimelineChart();
+                renderHeatmapChart();
+                renderTable();
+            });
+            
+            // Add legend explaining the chart - moved to top left
+            svg.append("text")
+                .attr("class", "scatter-legend")
+                .attr("x", 10)
+                .attr("y", 20)
+                .attr("text-anchor", "start")
+                .text("Each point represents a player's match performance");
+            
+            svg.append("text")
+                .attr("class", "scatter-legend")
+                .attr("x", 10)
+                .attr("y", 35)
+                .attr("text-anchor", "start")
+                .text("Green points highlight the selected player");
+            
+            svg.append("text")
+                .attr("class", "scatter-legend")
+                .attr("x", 10)
+                .attr("y", 50)
+                .attr("text-anchor", "start")
+                .text("Dashed lines show average values");
+            
+            svg.append("text")
+                .attr("class", "scatter-legend")
+                .attr("x", 10)
+                .attr("y", 65)
+                .attr("text-anchor", "start")
+                .text("Click points to filter table");
+        }
+        
+        // Render heatmap chart with clickable bars
+        function renderHeatmapChart() {
+            const margin = { top: 20, right: 30, bottom: 40, left: 150 }; // Increased left margin significantly
+            const width = 500 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            
+            // Clear existing chart
+            d3.select("#heatmap-chart").html("");
+            
+            // Create SVG
+            const svg = d3.select("#heatmap-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            // Get selected player
+            const selectedPlayer = playerFilter.value;
+            if (!selectedPlayer || selectedPlayer === "") {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("Select a player to view agent performance");
+                return;
+            }
+            
+            // Filter data for selected player
+            const playerData = filteredData.filter(d => d.Player === selectedPlayer);
+            if (playerData.length === 0) {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("No data available for selected player");
+                return;
+            }
+            
+            // Group by agent and calculate average rating
+            const agentData = {};
+            playerData.forEach(match => {
+                const agent = match.Agents;
+                const rating = parseFloat(match.Rating) || 0;
+                
+                if (!agentData[agent]) {
+                    agentData[agent] = { sum: 0, count: 0, matches: [] };
+                }
+                
+                agentData[agent].sum += rating;
+                agentData[agent].count += 1;
+                agentData[agent].matches.push(match);
+            });
+            
+            // Calculate average rating per agent
+            const heatmapData = [];
+            for (let agent in agentData) {
+                const avgRating = agentData[agent].sum / agentData[agent].count;
+                heatmapData.push({
+                    agent: agent,
+                    rating: avgRating,
+                    matches: agentData[agent].matches,
+                    matchCount: agentData[agent].count
+                });
+            }
+            
+            if (heatmapData.length === 0) {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("No agent data available");
+                return;
+            }
+            
+            // Sort by rating
+            heatmapData.sort((a, b) => b.rating - a.rating);
+            
+            // Create scales
+            const yScale = d3.scaleBand()
+                .domain(heatmapData.map(d => d.agent))
+                .range([0, height])
+                .padding(0.1);
+            
+            const colorScale = d3.scaleSequential(d3.interpolateReds)
+                .domain([0.5, d3.max(heatmapData, d => d.rating)]);
+            
+            // Add bars
+            const bars = svg.selectAll(".heatmap-bar")
+                .data(heatmapData)
+                .enter()
+                .append("rect")
+                .attr("class", d => {
+                    let className = "heatmap-cell";
+                    if (currentSelection.type === 'heatmap' && currentSelection.data === d) {
+                        className += " selected";
+                    }
+                    return className;
+                })
+                .attr("y", d => yScale(d.agent))
+                .attr("width", d => (d.rating / 2) * width)
+                .attr("height", yScale.bandwidth())
+                .style("fill", d => colorScale(d.rating));
+            
+            // Add agent labels with better formatting
+            svg.selectAll(".agent-label")
+                .data(heatmapData)
+                .enter()
+                .append("text")
+                .attr("class", "agent-label")
+                .attr("x", -10)
+                .attr("y", d => yScale(d.agent) + yScale.bandwidth() / 2)
+                .attr("text-anchor", "end")
+                .attr("dy", "0.35em")
+                .attr("fill", "#ece8e1")
+                .style("font-size", "11px") // Smaller font size
+                .text(d => {
+                    // Shorten agent names if they're too long
+                    const maxLength = 12;
+                    if (d.agent.length > maxLength) {
+                        return d.agent.substring(0, maxLength) + "...";
+                    }
+                    return d.agent;
+                });
+            
+            // Add rating values
+            svg.selectAll(".rating-label")
+                .data(heatmapData)
+                .enter()
+                .append("text")
+                .attr("class", "rating-label")
+                .attr("x", d => (d.rating / 2) * width + 5)
+                .attr("y", d => yScale(d.agent) + yScale.bandwidth() / 2)
+                .attr("dy", "0.35em")
+                .attr("fill", "#ece8e1")
+                .text(d => d.rating.toFixed(2));
+            
+            bars.on("mouseover", function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`
+                    <strong>${d.agent}</strong><br/>
+                    Average Rating: ${d.rating.toFixed(2)}<br/>
+                    Matches Played: ${d.matchCount}
+                `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            })
+            .on("click", function(event, d) {
+                // Hide tooltip on click
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", 0);
+                
+                // Update selection
+                if (currentSelection.type === 'heatmap' && currentSelection.data === d) {
+                    // Deselect if already selected
+                    currentSelection = { type: null, data: null };
+                    tableData = [...filteredData];
+                } else {
+                    currentSelection = { type: 'heatmap', data: d };
+                    // Filter table to show only this agent's records
+                    tableData = d.matches;
+                }
+                
+                // Re-render charts to update selection states
+                renderScatterChart();
+                renderTimelineChart();
+                renderHeatmapChart();
+                renderTable();
+            });
+        }
+        
+        // Render timeline chart with clickable points
+        function renderTimelineChart() {
+            const margin = { top: 20, right: 30, bottom: 80, left: 50 };
+            const width = 500 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            
+            // Clear existing chart
+            d3.select("#timeline-chart").html("");
+            
+            // Create SVG
+            const svg = d3.select("#timeline-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            // Get selected player
+            const selectedPlayer = playerFilter.value;
+            if (!selectedPlayer || selectedPlayer === "") {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("Select a player to view performance timeline");
+                return;
+            }
+            
+            // Filter data for selected player
+            const playerData = filteredData.filter(d => d.Player === selectedPlayer);
+            if (playerData.length === 0) {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("No data available for selected player");
+                return;
+            }
+            
+            // Sort by tournament (assuming tournament names contain date information)
+            const timelineData = playerData.map(d => ({
+                tournament: d.Tournament,
+                rating: parseFloat(d.Rating) || 0,
+                agent: d.Agents,
+                team: d.Teams,
+                kd: d["Kills:Deaths"],
+                originalData: d
+            }));
+            
+            // Create a simple index-based x-axis since we don't have actual dates
+            const xScale = d3.scalePoint()
+                .domain(timelineData.map(d => d.tournament))
+                .range([0, width]);
+            
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(timelineData, d => d.rating) * 1.1])
+                .range([height, 0])
+                .nice();
+            
+            // Add line
+            const line = d3.line()
+                .x(d => xScale(d.tournament))
+                .y(d => yScale(d.rating))
+                .curve(d3.curveMonotoneX);
+            
+            svg.append("path")
+                .datum(timelineData)
+                .attr("class", "timeline-line")
+                .attr("d", line);
+            
+            // Add points
+            const points = svg.selectAll(".timeline-point")
+                .data(timelineData)
+                .enter()
+                .append("circle")
+                .attr("class", d => {
+                    let className = "timeline-point";
+                    if (currentSelection.type === 'timeline' && currentSelection.data === d) {
+                        className += " selected";
+                    }
+                    return className;
+                })
+                .attr("cx", d => xScale(d.tournament))
+                .attr("cy", d => yScale(d.rating))
+                .attr("r", d => {
+                    if (currentSelection.type === 'timeline' && currentSelection.data === d) {
+                        return 8;
+                    }
+                    return 4;
+                })
+                .style("fill", d => {
+                    if (currentSelection.type === 'timeline' && currentSelection.data === d) {
+                        return "#ffa500";
+                    }
+                    return "#ff4655";
+                });
+            
+            // Add X axis with tournament names
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll("text")
+                .attr("transform", "rotate(-45)")
+                .style("text-anchor", "end")
+                .attr("fill", "#ece8e1");
+            
+            // Add Y axis
+            svg.append("g")
+                .call(d3.axisLeft(yScale))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -40)
+                .attr("x", -height / 2)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#ece8e1")
+                .text("Rating");
+            
+            points.on("mouseover", function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`
+                    <strong>${d.tournament}</strong><br/>
+                    Rating: ${d.rating.toFixed(2)}<br/>
+                    Agent: ${d.agent}<br/>
+                    K/D: ${d.kd}
+                `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            })
+            .on("click", function(event, d) {
+                // Hide tooltip on click
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", 0);
+                
+                // Update selection
+                if (currentSelection.type === 'timeline' && currentSelection.data === d) {
+                    // Deselect if already selected
+                    currentSelection = { type: null, data: null };
+                    tableData = [...filteredData];
+                } else {
+                    currentSelection = { type: 'timeline', data: d };
+                    // Filter table to show only this specific record
+                    tableData = [d.originalData];
+                }
+                
+                // Re-render charts to update selection states
+                renderScatterChart();
+                renderTimelineChart();
+                renderHeatmapChart();
+                renderTable();
+            });
+        }
+        
+        function applySort() {
+            if (!sortConfig.key) {
+                renderTable();
+                return;
+            }
+
+            const accessors = {
+                "Rating": d => parseFloat(d["Rating"]) || 0,
+
+                "K/D": d => {
+                    const raw = d["K/D"] || d["K-D"] || "";
+                    const parts = String(raw).split(":");
+                    const k = parseFloat(parts[0]) || 0;
+                    const death = parseFloat(parts[1]) || 1;
+                    return death === 0 ? k : k / death;
+                },
+
+                "ACS": d => parseFloat(d["Average Combat Score"]) || 0,
+
+                "Headshot %": d => {
+                    const raw = d["Headshot %"] || d["Headshot%"] || d["HS%"] || "0";
+                    return parseFloat(String(raw).replace("%", "")) || 0;
+                },
+
+                "ADR": d => parseFloat(d["Average Damage Per Round"]) || 0
+            };
+
+            const accessor = accessors[sortConfig.key];
+            if (!accessor) {
+                renderTable();
+                return;
+            }
+
+            tableData.sort((a, b) => {
+                const va = accessor(a);
+                const vb = accessor(b);
+                if (va === vb) return 0;
+                if (sortConfig.direction === "asc") {
+                    return va - vb;
+                } else {
+                    return vb - va;
+                }
+            });
+
+            renderTable();
+        }
+
+        // Render data table
+        function renderTable() {
+            const tableBody = d3.select("#table-body");
+            tableBody.html("");
+            
+            if (tableData.length === 0) {
+                tableBody.append("tr")
+                    .append("td")
+                    .attr("colspan", 9)
+                    .style("text-align", "center")
+                    .text("No matching data");
+                return;
+            }
+            
+            // Limit table rows displayed
+            const displayData = tableData.slice(0, 50);
+            
+            const rows = tableBody.selectAll("tr")
+                .data(displayData)
+                .enter()
+                .append("tr");
+            
+            // Populate table data
+            rows.append("td").text(d => d.Player);
+            rows.append("td").text(d => d.Teams);
+            rows.append("td").text(d => d.Agents);
+            rows.append("td").text(d => d.Tournament);
+            rows.append("td").html(d => {
+                const rating = +d.Rating;
+                let className = "rating-medium";
+                if (rating > 1.2) className = "rating-high";
+                if (rating < 0.8) className = "rating-low";
+                return `<span class="${className}">${rating.toFixed(2)}</span>`;
+            });
+            rows.append("td").text(d => d["Kills:Deaths"]);
+            rows.append("td").text(d => (+d["Average Combat Score"]).toFixed(0));
+            rows.append("td").text(d => d["Headshot %"] || "N/A");
+            rows.append("td").text(d => (+d["Average Damage Per Round"]).toFixed(0));
+        }
+        
+        // Load sample data (if CSV loading fails)
+        function loadSampleData() {
+            console.log("Loading sample data...");
+            playerData = [
+                {
+                    Tournament: "Champions Tour North America: Last Chance Qualifier",
+                    Stage: "Main Event",
+                    "Match Type": "Upper Quarterfinals",
+                    Player: "Ethan",
+                    Teams: "100 Thieves",
+                    Agents: "skye",
+                    "Rounds Played": "44",
+                    Rating: "1.29",
+                    "Average Combat Score": "236",
+                    "Kills:Deaths": "1.5",
+                    "Kill, Assist, Trade, Survive %": "75%",
+                    "Average Damage Per Round": "146",
+                    "Kills Per Round": "0.89",
+                    "Assists Per Round": "0.36",
+                    "First Kills Per Round": "0.07",
+                    "First Deaths Per Round": "0.11",
+                    "Headshot %": "31%",
+                    "Clutch Success %": "20%",
+                    "Clutches (won/played)": "1/5",
+                    "Maximum Kills in a Single Map": "29",
+                    Kills: "39",
+                    Deaths: "26",
+                    Assists: "16",
+                    "First Kills": "3",
+                    "First Deaths": "5"
+                },
+                {
+                    Tournament: "Champions Tour North America: Last Chance Qualifier",
+                    Stage: "Main Event",
+                    "Match Type": "Upper Quarterfinals",
+                    Player: "Asuna",
+                    Teams: "100 Thieves",
+                    Agents: "reyna",
+                    "Rounds Played": "40",
+                    Rating: "1.27",
+                    "Average Combat Score": "257",
+                    "Kills:Deaths": "1.48",
+                    "Kill, Assist, Trade, Survive %": "83%",
+                    "Average Damage Per Round": "178",
+                    "Kills Per Round": "0.93",
+                    "Assists Per Round": "0.33",
+                    "First Kills Per Round": "0.08",
+                    "First Deaths Per Round": "0.18",
+                    "Headshot %": "31%",
+                    "Clutch Success %": "50%",
+                    "Clutches (won/played)": "1/2",
+                    "Maximum Kills in a Single Map": "23",
+                    Kills: "37",
+                    Deaths: "25",
+                    Assists: "13",
+                    "First Kills": "3",
+                    "First Deaths": "7"
+                }
+            ];
+            
+            filteredData = [...playerData];
+            tableData = [...filteredData];
+            
+            // Initialize filters
+            initializeFilters();
+            
+            // Render charts and table
+            renderCharts();
+            if (sortConfig.key) {
+                applySort();
+            } else {
+                renderTable();
+            }
+
+        }
+        
+        // Initialize the dashboard
+        function initDashboard() {
+            // Add event listener for year filter
+            yearFilter.addEventListener('change', function() {
+                console.log("Year changed to:", this.value);
+                loadData();
+            });
+            
+            // Load initial data
+            loadData();
+        }
+        
+        // Start the dashboard
+        initDashboard();
+    </script>
+</body>
+</html>

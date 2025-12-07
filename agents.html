@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valorant Agent Pick Rates Analysis</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #0f1923;
+            color: #ece8e1;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ff4655;
+        }
+        
+        h1 {
+            color: #ff4655;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #ece8e1;
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+        
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background-color: #ff4655;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .back-button:hover {
+            background-color: #ff6b7a;
+        }
+        
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+            background-color: #1a2330;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #ff4655;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            background-color: #2a3441;
+            color: #ece8e1;
+            border: 1px solid #394552;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .chart-container {
+            background-color: #1a2330;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #ff4655;
+        }
+        
+        .bar {
+            fill: #ff4655;
+            transition: fill 0.3s;
+        }
+        
+        .bar:hover {
+            fill: #ff6b7a;
+        }
+        
+        .axis text {
+            fill: #ece8e1;
+            font-size: 12px;
+        }
+        
+        .axis path,
+        .axis line {
+            stroke: #394552;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background-color: rgba(26, 35, 48, 0.9);
+            border: 1px solid #ff4655;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 14px;
+            color: #ece8e1;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .info-panel {
+            background-color: #1a2330;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .info-panel h3 {
+            color: #ff4655;
+            margin-bottom: 15px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-card {
+            background-color: #2a3441;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #ff4655;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #ece8e1;
+        }
+        
+        .year-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .year-button {
+            padding: 8px 16px;
+            background-color: #2a3441;
+            color: #ece8e1;
+            border: 1px solid #394552;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .year-button.active {
+            background-color: #ff4655;
+            border-color: #ff4655;
+        }
+        
+        .year-button:hover {
+            background-color: #394552;
+        }
+        
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+            }
+            
+            .filter-group {
+                min-width: 100%;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .year-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">← Back to Main</a>
+        
+        <header>
+            <h1>Valorant Agent Pick Rates</h1>
+            <p class="subtitle">Analysis of agent selection patterns in professional tournaments</p>
+        </header>
+
+        <!-- Year Selection -->
+        <div class="year-buttons" id="year-buttons">
+            <button class="year-button active" data-year="2021">2021</button>
+            <button class="year-button" data-year="2022">2022</button>
+            <button class="year-button" data-year="2023">2023</button>
+            <button class="year-button" data-year="2024">2024</button>
+            <button class="year-button" data-year="2025">2025</button>
+        </div>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <label for="year-select">Year</label>
+                <select id="year-select">
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="map-select">Map</label>
+                <select id="map-select">
+                    <option value="All Maps">All Maps</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="stage-select">Stage</label>
+                <select id="stage-select">
+                    <option value="All Stages">All Stages</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h2 class="chart-title" id="chart-title">Agent Pick Rates - 2021</h2>
+            <div id="chart">
+                <div class="loading">Loading 2021 data...</div>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>Key Insights</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="top-agent">-</div>
+                    <div class="stat-label">Most Picked Agent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="top-rate">-</div>
+                    <div class="stat-label">Highest Pick Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avg-rate">-</div>
+                    <div class="stat-label">Average Pick Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="agents-count">-</div>
+                    <div class="stat-label">Agents Analyzed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip"></div>
+
+    <script>
+        // Configuration
+        const DATA_FILES = {
+            '2021': 'data/agents_pick_rates_2021.csv',
+            '2022': 'data/agents_pick_rates_2022.csv',
+            '2023': 'data/agents_pick_rates_2023.csv',
+            '2024': 'data/agents_pick_rates_2024.csv',
+            '2025': 'data/agents_pick_rates_2025.csv'
+        };
+
+        // Global variables
+        let currentYear = '2021';
+        let allData = {}; // Cache for loaded data
+
+        // Initialize the visualization
+        function initVisualization() {
+            // Set up year selection event listeners
+            setupYearSelection();
+            
+            // Load initial data (2021)
+            loadYearData('2021');
+        }
+
+        function setupYearSelection() {
+            // Year buttons
+            document.querySelectorAll('.year-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const year = this.getAttribute('data-year');
+                    selectYear(year);
+                });
+            });
+
+            // Year dropdown
+            document.getElementById('year-select').addEventListener('change', function() {
+                const year = this.value;
+                selectYear(year);
+            });
+        }
+
+        function selectYear(year) {
+            if (year === currentYear) return;
+            
+            // Update active states
+            document.querySelectorAll('.year-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.year-button[data-year="${year}"]`).classList.add('active');
+            
+            document.getElementById('year-select').value = year;
+            currentYear = year;
+            
+            // Update chart title
+            document.getElementById('chart-title').textContent = `Agent Pick Rates - ${year}`;
+            
+            // Load or use cached data
+            loadYearData(year);
+        }
+
+        function loadYearData(year) {
+            // Show loading state
+            d3.select('#chart').html('<div class="loading">Loading ' + year + ' data...</div>');
+            
+            // Check if data is already cached
+            if (allData[year]) {
+                processAndRenderData(allData[year], year);
+                return;
+            }
+            
+            // Load data from CSV
+            const filePath = DATA_FILES[year];
+            d3.csv(filePath)
+                .then(function(data) {
+                    console.log(`Raw data for ${year}:`, data); // Debug log
+                    
+                    // Filter out "All Maps" data
+                    const filteredData = data.filter(d => d.Map !== "All Maps");
+                    console.log(`Filtered data for ${year}:`, filteredData); // Debug log
+                    
+                    // Cache the filtered data
+                    allData[year] = filteredData;
+                    processAndRenderData(filteredData, year);
+                })
+                .catch(function(error) {
+                    console.error(`Error loading ${year} CSV file:`, error);
+                    d3.select('#chart')
+                        .html('')
+                        .append('div')
+                        .style('text-align', 'center')
+                        .style('padding', '50px')
+                        .style('color', '#ff4655')
+                        .html(`
+                            <h3>Error loading ${year} data</h3>
+                            <p>Please check if the file exists:</p>
+                            <code style="display: block; margin: 10px 0; padding: 10px; background: #2a3441; border-radius: 4px;">${filePath}</code>
+                            <p style="margin-top: 20px;">Error details: ${error}</p>
+                        `);
+                });
+        }
+
+        function processAndRenderData(data, year) {
+            // Remove loading indicator
+            d3.select('#chart .loading').remove();
+            
+            console.log(`Processing data for ${year}:`, data); // Debug log
+            
+            // Extract unique values for filters
+            const maps = [...new Set(data.map(d => d.Map))].sort();
+            const stages = [...new Set(data.map(d => d.Stage))].sort();
+            
+            console.log(`Maps for ${year}:`, maps); // Debug log
+            console.log(`Stages for ${year}:`, stages); // Debug log
+            
+            // Populate filter dropdowns
+            populateDropdown('map-select', maps);
+            populateDropdown('stage-select', stages);
+            
+            // Store the current year data
+            window.currentYearData = data;
+            
+            // Log map statistics
+            console.log(`Year ${year} - Available maps:`, maps);
+            console.log(`Year ${year} - Total maps:`, maps.length);
+            console.log(`Year ${year} - Available stages:`, stages);
+            
+            // Initial chart render
+            updateChart(year);
+            
+            function populateDropdown(selectId, options) {
+                const select = document.getElementById(selectId);
+                console.log(`Populating ${selectId} with options:`, options); // Debug log
+                
+                // Clear existing options except the first one
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+                
+                if (options && options.length > 0) {
+                    options.forEach(option => {
+                        if (option && option.trim() !== '') {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = option;
+                            optionElement.textContent = option;
+                            select.appendChild(optionElement);
+                        }
+                    });
+                } else {
+                    console.warn(`No options found for ${selectId}`);
+                }
+            }
+            
+            function updateChart(year) {
+                const selectedMap = document.getElementById('map-select').value;
+                const selectedStage = document.getElementById('stage-select').value;
+                
+                console.log(`Updating chart with filters - Map: ${selectedMap}, Stage: ${selectedStage}`); // Debug log
+                
+                // Filter data based on selections
+                let filteredData = window.currentYearData.filter(d => {
+                    const mapMatch = selectedMap === "All Maps" || d.Map === selectedMap;
+                    const stageMatch = selectedStage === "All Stages" || d.Stage === selectedStage;
+                    
+                    return mapMatch && stageMatch;
+                });
+                
+                console.log(`Filtered data for chart:`, filteredData); // Debug log
+                
+                // Aggregate data by agent
+                const agentData = {};
+                filteredData.forEach(d => {
+                    const agent = d.Agent;
+                    // 确保Pick Rate是数字
+                    const pickRateStr = d['Pick Rate'].replace('%', '');
+                    const pickRate = parseFloat(pickRateStr);
+                    
+                    if (!isNaN(pickRate)) {
+                        if (!agentData[agent]) {
+                            agentData[agent] = {
+                                total: 0,
+                                count: 0
+                            };
+                        }
+                        
+                        agentData[agent].total += pickRate;
+                        agentData[agent].count += 1;
+                    }
+                });
+                
+                // Calculate average pick rates
+                const chartData = Object.keys(agentData).map(agent => {
+                    return {
+                        agent: agent,
+                        pickRate: agentData[agent].total / agentData[agent].count
+                    };
+                });
+                
+                // Sort by pick rate (descending)
+                chartData.sort((a, b) => b.pickRate - a.pickRate);
+                
+                console.log(`Chart data:`, chartData); // Debug log
+                
+                // Update chart title
+                let title = `Agent Pick Rates - ${year}`;
+                if (selectedMap !== "All Maps") title += ` | ${selectedMap}`;
+                if (selectedStage !== "All Stages") title += ` | ${selectedStage}`;
+                
+                document.getElementById('chart-title').textContent = title;
+                
+                // Update insights
+                updateInsights(chartData);
+                
+                // Render chart
+                renderChart(chartData);
+            }
+            
+            function updateInsights(chartData) {
+                if (chartData.length === 0) {
+                    document.getElementById('top-agent').textContent = '-';
+                    document.getElementById('top-rate').textContent = '-';
+                    document.getElementById('avg-rate').textContent = '-';
+                    document.getElementById('agents-count').textContent = '0';
+                    return;
+                }
+                
+                const topAgent = chartData[0];
+                const avgRate = chartData.reduce((sum, d) => sum + d.pickRate, 0) / chartData.length;
+                
+                document.getElementById('top-agent').textContent = topAgent.agent;
+                document.getElementById('top-rate').textContent = `${topAgent.pickRate.toFixed(1)}%`;
+                document.getElementById('avg-rate').textContent = `${avgRate.toFixed(1)}%`;
+                document.getElementById('agents-count').textContent = chartData.length;
+            }
+            
+            function renderChart(chartData) {
+                // Clear previous chart
+                d3.select('#chart').html('');
+                
+                if (chartData.length === 0) {
+                    d3.select('#chart')
+                        .append('div')
+                        .style('text-align', 'center')
+                        .style('padding', '50px')
+                        .style('color', '#ece8e1')
+                        .text('No data available for the selected filters');
+                    return;
+                }
+                
+                // Set up dimensions
+                const margin = { top: 20, right: 30, bottom: 40, left: 150 };
+                const width = 800 - margin.left - margin.right;
+                const height = Math.max(400, chartData.length * 25) - margin.top - margin.bottom;
+                
+                // Create SVG
+                const svg = d3.select('#chart')
+                    .append('svg')
+                    .attr('width', width + margin.left + margin.right)
+                    .attr('height', height + margin.top + margin.bottom)
+                    .append('g')
+                    .attr('transform', `translate(${margin.left},${margin.top})`);
+                
+                // Create scales
+                const xScale = d3.scaleLinear()
+                    .domain([0, d3.max(chartData, d => d.pickRate)])
+                    .range([0, width]);
+                
+                const yScale = d3.scaleBand()
+                    .domain(chartData.map(d => d.agent))
+                    .range([0, height])
+                    .padding(0.1);
+                
+                // Create axes
+                const xAxis = d3.axisBottom(xScale)
+                    .tickFormat(d => `${d}%`);
+                
+                const yAxis = d3.axisLeft(yScale);
+                
+                svg.append('g')
+                    .attr('class', 'x axis')
+                    .attr('transform', `translate(0,${height})`)
+                    .call(xAxis);
+                
+                svg.append('g')
+                    .attr('class', 'y axis')
+                    .call(yAxis);
+                
+                // Create bars
+                const bars = svg.selectAll('.bar')
+                    .data(chartData)
+                    .enter()
+                    .append('rect')
+                    .attr('class', 'bar')
+                    .attr('x', 0)
+                    .attr('y', d => yScale(d.agent))
+                    .attr('width', d => xScale(d.pickRate))
+                    .attr('height', yScale.bandwidth())
+                    .on('mouseover', function(event, d) {
+                        // Show tooltip
+                        const tooltip = d3.select('.tooltip');
+                        tooltip
+                            .style('opacity', 1)
+                            .html(`
+                                <strong>${d.agent}</strong><br>
+                                Pick Rate: ${d.pickRate.toFixed(1)}%
+                            `)
+                            .style('left', (event.pageX + 10) + 'px')
+                            .style('top', (event.pageY - 10) + 'px');
+                    })
+                    .on('mouseout', function() {
+                        // Hide tooltip
+                        d3.select('.tooltip').style('opacity', 0);
+                    });
+                
+                // Add value labels on bars
+                svg.selectAll('.label')
+                    .data(chartData)
+                    .enter()
+                    .append('text')
+                    .attr('class', 'label')
+                    .attr('x', d => xScale(d.pickRate) + 5)
+                    .attr('y', d => yScale(d.agent) + yScale.bandwidth() / 2)
+                    .attr('dy', '.35em')
+                    .style('fill', '#ece8e1')
+                    .style('font-size', '12px')
+                    .text(d => `${d.pickRate.toFixed(1)}%`);
+            }
+
+            // Set up filter event listeners for the current year
+            document.getElementById('map-select').addEventListener('change', () => updateChart(year));
+            document.getElementById('stage-select').addEventListener('change', () => updateChart(year));
+        }
+        
+        // Initialize the visualization when the page loads
+        window.addEventListener('DOMContentLoaded', initVisualization);
+    </script>
+</body>
+</html>

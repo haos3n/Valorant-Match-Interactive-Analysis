@@ -1,0 +1,1756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valorant Match Dynamics & Economy Analysis</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #0f1923;
+            color: #ece8e1;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background-color: #ff4655;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .back-button:hover {
+            background-color: #ff6b7a;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            border-bottom: 1px solid #ff4655;
+        }
+        
+        h1 {
+            color: #ff4655;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #ece8e1;
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+        
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #1a2330;
+            border-radius: 8px;
+        }
+        
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #ff4655;
+        }
+        
+        select, input, button {
+            width: 100%;
+            padding: 10px;
+            background-color: #0f1923;
+            border: 1px solid #38404a;
+            border-radius: 4px;
+            color: #ece8e1;
+            font-size: 1rem;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: #ff4655;
+        }
+        
+        select:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        button {
+            background-color: #ff4655;
+            color: #ece8e1;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #e03e4c;
+        }
+        
+        .economy-info {
+            background-color: #1a2330;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .economy-info h3 {
+            color: #ff4655;
+            margin-bottom: 15px;
+        }
+        
+        .economy-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .economy-type {
+            background-color: #0f1923;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #ff4655;
+        }
+        
+        .economy-type h4 {
+            color: #ff4655;
+            margin-bottom: 8px;
+        }
+        
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background-color: #1a2330;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card h3 {
+            color: #ff4655;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: #ece8e1;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+            border-radius: 50%;
+            width: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .refresh-btn:hover {
+            background-color: rgba(255, 70, 85, 0.2);
+            color: #ff4655;
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin-top: 15px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .data-table th {
+            background-color: #ff4655;
+            color: #0f1923;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #38404a;
+        }
+        
+        .data-table tr:hover {
+            background-color: #252e3a;
+        }
+        
+        .rating-high {
+            color: #0acf83;
+            font-weight: bold;
+        }
+        
+        .rating-medium {
+            color: #ffa500;
+            font-weight: bold;
+        }
+        
+        .rating-low {
+            color: #ff4655;
+            font-weight: bold;
+        }
+        
+        .axis text {
+            fill: #ece8e1;
+            font-size: 12px;
+        }
+        
+        .axis path,
+        .axis line {
+            stroke: #38404a;
+        }
+        
+        .grid line {
+            stroke: #38404a;
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+        
+        .grid path {
+            stroke-width: 0;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background-color: rgba(26, 35, 48, 0.9);
+            border: 1px solid #38404a;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 14px;
+            color: #ece8e1;
+            z-index: 10;
+            opacity: 0;
+        }
+        
+        .economy-cell {
+            stroke: #0f1923;
+            stroke-width: 1;
+            cursor: pointer;
+        }
+        
+        .economy-cell:hover {
+            stroke: #ece8e1;
+            stroke-width: 2;
+        }
+        
+        .economy-cell.selected {
+            stroke: #ffa500;
+            stroke-width: 3;
+        }
+        
+        .timeline-line {
+            fill: none;
+            stroke: #ff4655;
+            stroke-width: 2;
+        }
+        
+        .timeline-point {
+            fill: #ff4655;
+            r: 4;
+            cursor: pointer;
+        }
+        
+        .timeline-point:hover {
+            r: 6;
+            fill: #0acf83;
+        }
+        
+        .timeline-point.selected {
+            fill: #ffa500;
+            r: 8;
+            stroke: #ece8e1;
+            stroke-width: 2;
+        }
+        
+        .bar {
+            fill: #ff4655;
+            transition: fill 0.3s;
+        }
+        
+        .bar:hover {
+            fill: #0acf83;
+        }
+        
+        .win-rate-high {
+            fill: #0acf83;
+        }
+        
+        .win-rate-medium {
+            fill: #ffa500;
+        }
+        
+        .win-rate-low {
+            fill: #ff4655;
+        }
+        
+        .team-a {
+            fill: #0acf83;
+        }
+        
+        .team-b {
+            fill: #ff4655;
+        }
+        
+        .team-label {
+            font-size: 12px;
+            fill: #ece8e1;
+        }
+        
+        .legend-item {
+            font-size: 12px;
+            fill: #ece8e1;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters {
+                flex-direction: column;
+            }
+            
+            .card h3 {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .economy-types {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 25, 35, 0.95); display: none; justify-content: center; align-items: center; z-index: 9999; flex-direction: column;">
+        <div style="text-align: center; color: #ece8e1;">
+            <h3 style="color: #ff4655; margin-bottom: 20px;">Loading Valorant Data...</h3>
+            <div style="width: 50px; height: 50px; border: 3px solid #38404a; border-top: 3px solid #ff4655; border-radius: 50%; margin: 0 auto 20px; animation: spin 1s linear infinite;"></div>
+            <p>Processing economy round data, please wait</p>
+        </div>
+    </div>
+
+    <style>
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    </style>
+
+
+    <div class="container">
+        <a href="index.html" class="back-button">← Back to Main</a>
+        
+        <header>
+            <h1>Valorant Match Dynamics & Economy Analysis</h1>
+            <p class="subtitle">Round-by-round economy management, weapon usage patterns, and economic decision impact on match outcomes</p>
+        </header>
+        
+        <div class="economy-info">
+            <h3>Economy Round Types</h3>
+            <div class="economy-types">
+                <div class="economy-type">
+                    <h4>Pistol Round</h4>
+                    <p>Team won the pistol round</p>
+                </div>
+                <div class="economy-type">
+                    <h4>Eco (won)</h4>
+                    <p>Team spent 0-5k credits to win a round</p>
+                </div>
+                <div class="economy-type">
+                    <h4>$ (Semi-eco)</h4>
+                    <p>Team spent 5-10k credits to win a round</p>
+                </div>
+                <div class="economy-type">
+                    <h4>$$ (Semi-buy)</h4>
+                    <p>Team spent 10-20k credits to win a round</p>
+                </div>
+                <div class="economy-type">
+                    <h4>$$$ (Full buy)</h4>
+                    <p>Team spent over 20k credits to win a round</p>
+                </div>
+            </div>
+            <p style="margin-top: 15px; font-size: 0.9rem; opacity: 0.8;">
+                <strong>Initiated:</strong> How many times the team engaged a specific economy round<br>
+                <strong>Won:</strong> How many times the team won a specific economy round
+            </p>
+        </div>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <label for="year-filter">Year</label>
+                <select id="year-filter">
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="tournament-filter">Tournament</label>
+                <select id="tournament-filter">
+                    <option value="">All Tournaments</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="team-filter">Team</label>
+                <select id="team-filter">
+                    <option value="">All Teams</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="map-filter">Map</label>
+                <select id="map-filter">
+                    <option value="">All Maps</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="economy-type-filter">Economy Type</label>
+                <select id="economy-type-filter">
+                    <option value="All">All Types</option>
+                    <option value="Pistol Won">Pistol</option>
+                    <option value="Eco (won)">Eco</option>
+                    <option value="$ (won)">$ (Semi-eco)</option>
+                    <option value="$$ (won)">$$ (Semi-buy)</option>
+                    <option value="$$$ (won)">$$$ (Full buy)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="stats-container">
+            <div class="card">
+                <h3>Economy Round Win Rates</h3>
+                <div id="economy-winrate-chart" class="chart-container"></div>
+            </div>
+            
+            <div class="card">
+                <h3>Economy Round Success by Map</h3>
+                <div id="map-economy-chart" class="chart-container"></div>
+            </div>
+        </div>
+        
+        <div class="stats-container">
+            <div class="card">
+                <h3>Team Economy Comparison</h3>
+                <div id="team-economy-chart" class="chart-container"></div>
+            </div>
+            
+            <div class="card">
+                <h3>Economy Round Timeline</h3>
+                <div id="economy-timeline-chart" class="chart-container"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3>
+                Economy Round Data
+                <button class="refresh-btn" title="Show All Data">↻</button>
+            </h3>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Tournament</th>
+                            <th>Match</th>
+                            <th>Map</th>
+                            <th>Team</th>
+                            <th>Economy Type</th>
+                            <th>Initiated</th>
+                            <th>Won</th>
+                            <th>Win Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+            // Loading functions
+        function showLoading() {
+            document.getElementById('loading-overlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+
+        // Global variables
+        let economyData = [];
+        let filteredData = [];
+        let tableData = [];
+        let currentSelection = {
+            type: null, // 'economy', 'map', 'team', 'timeline'
+            data: null
+        };
+
+        // loading
+        let loadingTimeout = null;
+        const LOADING_DELAY = 300; 
+
+        function showSmartLoading() {
+        loadingTimeout = setTimeout(() => {
+            showLoading();
+        }, LOADING_DELAY);
+    }
+
+
+        function hideSmartLoading() {
+            if (loadingTimeout) {
+                clearTimeout(loadingTimeout);
+                loadingTimeout = null;
+            }
+            hideLoading();
+        }
+        
+        // DOM elements
+        const yearFilter = document.getElementById('year-filter');
+        const tournamentFilter = document.getElementById('tournament-filter');
+        const teamFilter = document.getElementById('team-filter');
+        const mapFilter = document.getElementById('map-filter');
+        const economyTypeFilter = document.getElementById('economy-type-filter');
+        const refreshBtn = document.querySelector('.refresh-btn');
+        
+        
+        // Tooltip element (global)
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+        
+        // Load CSV data based on selected year
+        function loadData() {
+            showLoading();
+            const selectedYear = yearFilter.value;
+            const fileName = `data/eco_stats_${selectedYear}.csv`;
+            
+            // Save current selections
+            const currentTournament = tournamentFilter.value;
+            const currentTeam = teamFilter.value;
+            const currentMap = mapFilter.value;
+            const currentEconomyType = economyTypeFilter.value;
+            
+            d3.csv(fileName).then(function(data) {
+                console.log(`CSV for ${selectedYear} loaded successfully, rows:`, data.length);
+                economyData = data;
+                filteredData = [...economyData];
+                tableData = [...filteredData];
+                
+                // Initialize filters
+                initializeFilters();
+                
+                // Restore previous selections if they exist in the new data
+                if (currentTournament && [...new Set(economyData.map(d => d.Tournament))].includes(currentTournament)) {
+                    tournamentFilter.value = currentTournament;
+                    updateTeamFilter();
+                    
+                    if (currentTeam && [...new Set(economyData.filter(d => d.Tournament === currentTournament).map(d => d.Team))].includes(currentTeam)) {
+                        teamFilter.value = currentTeam;
+                        updateMapFilter();
+                        
+                        if (currentMap && [...new Set(economyData.filter(d => d.Tournament === currentTournament && d.Team === currentTeam).map(d => d.Map))].includes(currentMap)) {
+                            mapFilter.value = currentMap;
+                        }
+                    }
+                }
+                
+                if (currentEconomyType) {
+                    economyTypeFilter.value = currentEconomyType;
+                }
+                
+                applyFilters();
+                
+                // Render charts and table
+                renderCharts();
+                renderTable();
+                
+
+                hideLoading();
+            }).catch(function(error) {
+                console.error(`Error loading the CSV file for ${selectedYear}:`, error);
+                // Use sample data if CSV loading fails
+                console.log("Using sample data instead");
+                hideLoading();
+                loadSampleData();
+            });
+        }
+        
+        // Initialize filter options
+        function initializeFilters() {
+            console.log("Initializing filters...");
+            
+            // Clear existing options
+            tournamentFilter.innerHTML = '<option value="">All Tournaments</option>';
+            teamFilter.innerHTML = '<option value="">All Teams</option>';
+            mapFilter.innerHTML = '<option value="">All Maps</option>';
+            
+            // Get unique tournaments
+            const tournaments = [...new Set(economyData.map(d => d.Tournament))].sort();
+            console.log("Tournaments found:", tournaments);
+            
+            // Populate tournament filter
+            tournaments.forEach(tournament => {
+                const option = document.createElement('option');
+                option.value = tournament;
+                option.textContent = tournament;
+                tournamentFilter.appendChild(option);
+            });
+            
+            // Update team filter based on tournament selection
+            updateTeamFilter();
+            
+            // Update map filter based on team selection
+            updateMapFilter();
+            
+            // Add filter event listeners
+            tournamentFilter.addEventListener('change', function() {
+                console.log("Tournament changed to:", this.value);
+                updateTeamFilter();
+                applyFilters();
+            });
+            
+            teamFilter.addEventListener('change', function() {
+                console.log("Team changed to:", this.value);
+                updateMapFilter();
+                applyFilters();
+            });
+            
+            mapFilter.addEventListener('change', function() {
+                console.log("Map changed to:", this.value);
+                applyFilters();
+            });
+            
+            economyTypeFilter.addEventListener('change', function() {
+                console.log("Economy type changed to:", this.value);
+                applyFilters();
+            });
+            
+            // Add event listener for refresh button
+            refreshBtn.addEventListener('click', function() {
+                resetToFullView();
+            });
+            
+
+            
+            console.log("Filters initialized");
+        }
+        
+        // Update team filter based on selected tournament
+        function updateTeamFilter() {
+            const selectedTournament = tournamentFilter.value;
+            
+            console.log("Updating team filter for tournament:", selectedTournament);
+            
+            // Clear existing options
+            teamFilter.innerHTML = '';
+            
+            if (!selectedTournament || selectedTournament === "") {
+                console.log("No tournament selected, showing all teams");
+                // Get all teams
+                const teams = [...new Set(economyData.map(d => d.Team))].sort();
+                
+                // Add "All Teams" option
+                const allOption = document.createElement('option');
+                allOption.value = "";
+                allOption.textContent = "All Teams";
+                teamFilter.appendChild(allOption);
+                
+                // Add team options
+                teams.forEach(team => {
+                    const option = document.createElement('option');
+                    option.value = team;
+                    option.textContent = team;
+                    teamFilter.appendChild(option);
+                });
+                return;
+            }
+            
+            // Get teams from selected tournament
+            const tournamentTeams = economyData.filter(d => d.Tournament === selectedTournament);
+            const teams = [...new Set(tournamentTeams.map(d => d.Team))].sort();
+            
+            console.log("Found teams for tournament", selectedTournament + ":", teams);
+            
+            if (teams.length === 0) {
+                console.log("No teams found for tournament:", selectedTournament);
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "No teams available";
+                teamFilter.appendChild(option);
+                return;
+            }
+            
+            // Add "All Teams" option
+            const allOption = document.createElement('option');
+            allOption.value = "";
+            allOption.textContent = "All Teams";
+            teamFilter.appendChild(allOption);
+            
+            // Add team options
+            teams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = team;
+                option.textContent = team;
+                teamFilter.appendChild(option);
+            });
+            
+            console.log("Team filter updated successfully. Options:", teamFilter.options.length);
+        }
+        
+        // Update map filter based on selected team
+        function updateMapFilter() {
+            const selectedTournament = tournamentFilter.value;
+            const selectedTeam = teamFilter.value;
+            
+            console.log("Updating map filter for tournament:", selectedTournament, "and team:", selectedTeam);
+            
+            // Clear existing options
+            mapFilter.innerHTML = '';
+            
+            if ((!selectedTournament || selectedTournament === "") && (!selectedTeam || selectedTeam === "")) {
+                console.log("No tournament or team selected, showing all maps");
+                // Get all maps
+                const maps = [...new Set(economyData.map(d => d.Map))].sort();
+                
+                // Add "All Maps" option
+                const allOption = document.createElement('option');
+                allOption.value = "";
+                allOption.textContent = "All Maps";
+                mapFilter.appendChild(allOption);
+                
+                // Add map options
+                maps.forEach(map => {
+                    const option = document.createElement('option');
+                    option.value = map;
+                    option.textContent = map;
+                    mapFilter.appendChild(option);
+                });
+                return;
+            }
+            
+            // Get maps based on selections
+            let mapData = economyData;
+            
+            if (selectedTournament && selectedTournament !== "") {
+                mapData = mapData.filter(d => d.Tournament === selectedTournament);
+            }
+            
+            if (selectedTeam && selectedTeam !== "") {
+                mapData = mapData.filter(d => d.Team === selectedTeam);
+            }
+            
+            const maps = [...new Set(mapData.map(d => d.Map))].sort();
+            
+            console.log("Found maps:", maps);
+            
+            if (maps.length === 0) {
+                console.log("No maps found for the current selection");
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "No maps available";
+                mapFilter.appendChild(option);
+                return;
+            }
+            
+            // Add "All Maps" option
+            const allOption = document.createElement('option');
+            allOption.value = "";
+            allOption.textContent = "All Maps";
+            mapFilter.appendChild(allOption);
+            
+            // Add map options
+            maps.forEach(map => {
+                const option = document.createElement('option');
+                option.value = map;
+                option.textContent = map;
+                mapFilter.appendChild(option);
+            });
+            
+            console.log("Map filter updated successfully. Options:", mapFilter.options.length);
+        }
+        
+        // Reset to full view (show all data)
+        function resetToFullView() {
+            console.log("Resetting to full view");
+            
+            showSmartLoading();
+            
+            setTimeout(() => {
+                // Reset selection
+                currentSelection = { type: null, data: null };
+                
+                // Reset table data to show all filtered data
+                tableData = [...filteredData];
+                
+                // Re-render charts and table
+                renderCharts();
+                renderTable();
+                
+                hideSmartLoading();
+            }, 50);
+        }
+        
+        // Apply filters
+        function applyFilters() {
+            const tournamentFilterValue = tournamentFilter.value;
+            const teamFilterValue = teamFilter.value;
+            const mapFilterValue = mapFilter.value;
+            const economyTypeFilterValue = economyTypeFilter.value;
+            
+            console.log("Applying filters - Tournament:", tournamentFilterValue, "Team:", teamFilterValue, "Map:", mapFilterValue, "Economy Type:", economyTypeFilterValue);
+            
+            filteredData = economyData.filter(d => {
+                return (tournamentFilterValue === "" || d.Tournament === tournamentFilterValue) &&
+                       (teamFilterValue === "" || d.Team === teamFilterValue) &&
+                       (mapFilterValue === "" || d.Map === mapFilterValue) &&
+                       (economyTypeFilterValue === "All" || d.Type === economyTypeFilterValue);
+            });
+            
+            console.log("Filters applied. Result count:", filteredData.length);
+            
+            // Reset selection when filters change
+            currentSelection = { type: null, data: null };
+            tableData = [...filteredData];
+            
+            if (filteredData.length < 1000) {
+                renderCharts();
+            } else {
+                renderTable();
+    }
+}
+        
+        
+        // Render charts
+        function renderCharts() {
+            renderEconomyWinRateChart();
+            renderMapEconomyChart();
+            renderTeamEconomyChart();
+            renderEconomyTimelineChart();
+        }
+        
+        // Render economy round win rates chart
+        function renderEconomyWinRateChart() {
+            const margin = { top: 20, right: 30, bottom: 50, left: 60 };
+            const width = 500 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            
+            // Clear existing chart
+            d3.select("#economy-winrate-chart").html("");
+            
+            // Create SVG
+            const svg = d3.select("#economy-winrate-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            // Group data by economy type and calculate win rates
+            const economyTypes = ["Pistol Won", "Eco (won)", "$ (won)", "$$ (won)", "$$$ (won)"];
+            const economyData = [];
+            
+            economyTypes.forEach(type => {
+                const typeData = filteredData.filter(d => d.Type === type);
+                if (typeData.length === 0) return;
+                
+                const totalInitiated = d3.sum(typeData, d => +d.Initiated || 0);
+                const totalWon = d3.sum(typeData, d => +d.Won || 0);
+                const winRate = totalInitiated > 0 ? (totalWon / totalInitiated) * 100 : 0;
+                
+                economyData.push({
+                    type: type,
+                    initiated: totalInitiated,
+                    won: totalWon,
+                    winRate: winRate
+                });
+            });
+            
+            if (economyData.length === 0) {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("No data available");
+                return;
+            }
+            
+            // Create scales
+            const xScale = d3.scaleBand()
+                .domain(economyData.map(d => d.type))
+                .range([0, width])
+                .padding(0.2);
+            
+            const yScale = d3.scaleLinear()
+                .domain([0, 100])
+                .range([height, 0])
+                .nice();
+            
+            // Add X axis
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll("text")
+                .attr("transform", "rotate(-45)")
+                .style("text-anchor", "end")
+                .attr("fill", "#ece8e1");
+            
+            // Add Y axis
+            svg.append("g")
+                .call(d3.axisLeft(yScale).tickFormat(d => d + "%"))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -40)
+                .attr("x", -height / 2)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#ece8e1")
+                .text("Win Rate (%)");
+            
+            // Add bars
+            const bars = svg.selectAll(".bar")
+                .data(economyData)
+                .enter()
+                .append("rect")
+                .attr("class", d => {
+                    let className = "bar";
+                    if (d.winRate > 60) className += " win-rate-high";
+                    else if (d.winRate > 40) className += " win-rate-medium";
+                    else className += " win-rate-low";
+                    return className;
+                })
+                .attr("x", d => xScale(d.type))
+                .attr("y", d => yScale(d.winRate))
+                .attr("width", xScale.bandwidth())
+                .attr("height", d => height - yScale(d.winRate))
+                .style("fill", d => {
+                    if (d.winRate > 60) return "#0acf83";
+                    if (d.winRate > 40) return "#ffa500";
+                    return "#ff4655";
+                });
+            
+            // Add win rate labels on bars
+            svg.selectAll(".winrate-label")
+                .data(economyData)
+                .enter()
+                .append("text")
+                .attr("class", "winrate-label")
+                .attr("x", d => xScale(d.type) + xScale.bandwidth() / 2)
+                .attr("y", d => yScale(d.winRate) - 5)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#ece8e1")
+                .text(d => d.winRate.toFixed(1) + "%");
+            
+           // Add legend for win rate colors
+            const legend = svg.append("g")
+                .attr("transform", `translate(0, ${height + 40})`);
+
+            const winRateLegendItems = [
+                { color: "#0acf83", text: "High (>60%)" },
+                { color: "#ffa500", text: "Medium (40-60%)" },
+                { color: "#ff4655", text: "Low (<40%)" }
+            ];
+
+            const legendItems = legend.selectAll(".legend-item")
+                .data(winRateLegendItems)
+                .enter()
+                .append("g")
+                .attr("class", "legend-item")
+                .attr("transform", (d, i) => `translate(${i * 120}, 0)`);  // 从80改为100
+
+            legendItems.append("rect")
+                .attr("width", 10)
+                .attr("height", 10)
+                .attr("fill", d => d.color);
+
+            legendItems.append("text")
+                .attr("x", 15)
+                .attr("y", 10)
+                .text(d => d.text)
+                .style("font-size", "10px")
+                .attr("fill", "#ece8e1");
+            
+            bars.on("mouseover", function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`
+                    <strong>${d.type}</strong><br/>
+                    Win Rate: ${d.winRate.toFixed(1)}%<br/>
+                    Won: ${d.won}<br/>
+                    Initiated: ${d.initiated}
+                `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            })
+            .on("click", function(event, d) {
+                // Hide tooltip on click
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", 0);
+                
+                showSmartLoading();
+                
+    
+                setTimeout(() => {
+                    // Update selection
+                    if (currentSelection.type === 'economy' && currentSelection.data === d) {
+                        // Deselect if already selected
+                        currentSelection = { type: null, data: null };
+                        tableData = [...filteredData];
+                    } else {
+                        currentSelection = { type: 'economy', data: d };
+                        // Filter table to show only this economy type
+                        tableData = filteredData.filter(item => item.Type === d.type);
+                    }
+                    
+                    // Re-render charts to update selection states
+                    renderEconomyWinRateChart();
+                    renderMapEconomyChart();
+                    renderTeamEconomyChart();
+                    renderEconomyTimelineChart();
+                    renderTable();
+                    
+             
+                    hideSmartLoading();
+                }, 50);
+            });
+        }
+        
+        // Render economy round success by map chart
+        function renderMapEconomyChart() {
+            const margin = { top: 20, right: 30, bottom: 50, left: 60 };
+            const width = 500 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            
+            // Clear existing chart
+            d3.select("#map-economy-chart").html("");
+            
+            // Create SVG
+            const svg = d3.select("#map-economy-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            // Get unique maps
+            const maps = [...new Set(filteredData.map(d => d.Map))].sort();
+            
+            // Group data by map and economy type
+            const mapData = [];
+            
+            maps.forEach(map => {
+                const mapRecords = filteredData.filter(d => d.Map === map);
+                const economyTypes = ["Pistol Won", "Eco (won)", "$ (won)", "$$ (won)", "$$$ (won)"];
+                
+                economyTypes.forEach(type => {
+                    const typeData = mapRecords.filter(d => d.Type === type);
+                    if (typeData.length === 0) return;
+                    
+                    const totalInitiated = d3.sum(typeData, d => +d.Initiated || 0);
+                    const totalWon = d3.sum(typeData, d => +d.Won || 0);
+                    const winRate = totalInitiated > 0 ? (totalWon / totalInitiated) * 100 : 0;
+                    
+                    mapData.push({
+                        map: map,
+                        type: type,
+                        initiated: totalInitiated,
+                        won: totalWon,
+                        winRate: winRate
+                    });
+                });
+            });
+            
+            if (mapData.length === 0) {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("No data available");
+                return;
+            }
+            
+            // Create scales
+            const xScale = d3.scaleBand()
+                .domain(maps)
+                .range([0, width])
+                .padding(0.2);
+            
+            const yScale = d3.scaleLinear()
+                .domain([0, 100])
+                .range([height, 0])
+                .nice();
+            
+            // Color scale for economy types
+            const colorScale = d3.scaleOrdinal()
+                .domain(["Pistol Won", "Eco (won)", "$ (won)", "$$ (won)", "$$$ (won)"])
+                .range(["#ff4655", "#0acf83", "#ffa500", "#8a2be2", "#00bfff"]);
+            
+            // Create grouped bar chart instead of stacked
+            const economyTypes = ["Pistol Won", "Eco (won)", "$ (won)", "$$ (won)", "$$$ (won)"];
+            const xSubgroup = d3.scaleBand()
+                .domain(economyTypes)
+                .range([0, xScale.bandwidth()])
+                .padding(0.05);
+            
+            // Add X axis
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll("text")
+                .attr("transform", "rotate(-45)")
+                .style("text-anchor", "end")
+                .attr("fill", "#ece8e1");
+            
+            // Add Y axis
+            svg.append("g")
+                .call(d3.axisLeft(yScale).tickFormat(d => d + "%"))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -40)
+                .attr("x", -height / 2)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#ece8e1")
+                .text("Win Rate (%)");
+            
+            // Add grouped bars
+            const mapGroups = svg.selectAll(".map-group")
+                .data(maps)
+                .enter()
+                .append("g")
+                .attr("class", "map-group")
+                .attr("transform", d => `translate(${xScale(d)}, 0)`);
+            
+            mapGroups.selectAll(".bar")
+                .data(d => {
+                    const mapRecords = mapData.filter(item => item.map === d);
+                    return economyTypes.map(type => {
+                        const record = mapRecords.find(item => item.type === type);
+                        return {
+                            type: type,
+                            winRate: record ? record.winRate : 0,
+                            initiated: record ? record.initiated : 0,
+                            won: record ? record.won : 0,
+                            map: d
+                        };
+                    });
+                })
+                .enter()
+                .append("rect")
+                .attr("class", "economy-cell")
+                .attr("x", d => xSubgroup(d.type))
+                .attr("y", d => yScale(d.winRate))
+                .attr("width", xSubgroup.bandwidth())
+                .attr("height", d => height - yScale(d.winRate))
+                .attr("fill", d => colorScale(d.type));
+            
+            // Add legend
+            const legend = svg.append("g")
+                .attr("transform", `translate(0, ${height + 40})`);
+            
+            const legendItems = legend.selectAll(".legend-item")
+                .data(colorScale.domain())
+                .enter()
+                .append("g")
+                .attr("class", "legend-item")
+                .attr("transform", (d, i) => `translate(${i * 80}, 0)`);
+            
+            legendItems.append("rect")
+                .attr("width", 10)
+                .attr("height", 10)
+                .attr("fill", colorScale);
+            
+            legendItems.append("text")
+                .attr("x", 15)
+                .attr("y", 10)
+                .text(d => d)
+                .style("font-size", "10px")
+                .attr("fill", "#ece8e1");
+            
+            // Add interaction
+            mapGroups.selectAll("rect")
+                .on("mouseover", function(event, d) {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(`
+                        <strong>${d.map} - ${d.type}</strong><br/>
+                        Win Rate: ${d.winRate.toFixed(1)}%<br/>
+                        Won: ${d.won}<br/>
+                        Initiated: ${d.initiated}
+                    `)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function(d) {
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                })
+                .on("click", function(event, d) {
+                    // Hide tooltip on click
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", 0);
+                    
+                
+                    showSmartLoading();
+                    
+                    setTimeout(() => {
+                        // Update selection
+                        if (currentSelection.type === 'map' && currentSelection.data && 
+                            currentSelection.data.map === d.map && currentSelection.data.type === d.type) {
+                            // Deselect if already selected
+                            currentSelection = { type: null, data: null };
+                            tableData = [...filteredData];
+                        } else {
+                            currentSelection = { type: 'map', data: { map: d.map, type: d.type } };
+                            // Filter table to show only this map and economy type
+                            tableData = filteredData.filter(item => 
+                                item.Map === d.map && item.Type === d.type
+                            );
+                        }
+                        
+                        // Re-render charts to update selection states
+                        renderEconomyWinRateChart();
+                        renderMapEconomyChart();
+                        renderTeamEconomyChart();
+                        renderEconomyTimelineChart();
+                        renderTable();
+                        
+                        
+                        hideSmartLoading();
+                    }, 50);
+                });
+        }
+        
+        // Render team economy comparison chart
+        function renderTeamEconomyChart() {
+            const margin = { top: 20, right: 30, bottom: 50, left: 60 };
+            const width = 500 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            
+            // Clear existing chart
+            d3.select("#team-economy-chart").html("");
+            
+            // Create SVG
+            const svg = d3.select("#team-economy-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            // Get unique teams
+            const teams = [...new Set(filteredData.map(d => d.Team))].sort();
+            
+            // Group data by team and calculate overall economy win rate
+            const teamData = [];
+            
+            teams.forEach(team => {
+                const teamRecords = filteredData.filter(d => d.Team === team);
+                if (teamRecords.length === 0) return;
+                
+                const totalInitiated = d3.sum(teamRecords, d => +d.Initiated || 0);
+                const totalWon = d3.sum(teamRecords, d => +d.Won || 0);
+                const winRate = totalInitiated > 0 ? (totalWon / totalInitiated) * 100 : 0;
+                
+                teamData.push({
+                    team: team,
+                    initiated: totalInitiated,
+                    won: totalWon,
+                    winRate: winRate
+                });
+            });
+            
+            if (teamData.length === 0) {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("No data available");
+                return;
+            }
+            
+            // Sort by win rate
+            teamData.sort((a, b) => b.winRate - a.winRate);
+            
+            // Create scales
+            const xScale = d3.scaleBand()
+                .domain(teamData.map(d => d.team))
+                .range([0, width])
+                .padding(0.2);
+            
+            const yScale = d3.scaleLinear()
+                .domain([0, 100])
+                .range([height, 0])
+                .nice();
+            
+            // Add X axis
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll("text")
+                .attr("transform", "rotate(-45)")
+                .style("text-anchor", "end")
+                .attr("fill", "#ece8e1");
+            
+            // Add Y axis
+            svg.append("g")
+                .call(d3.axisLeft(yScale).tickFormat(d => d + "%"))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -40)
+                .attr("x", -height / 2)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#ece8e1")
+                .text("Win Rate (%)");
+            
+            // Add bars
+            const bars = svg.selectAll(".bar")
+                .data(teamData)
+                .enter()
+                .append("rect")
+                .attr("class", d => {
+                    let className = "bar";
+                    if (d.winRate > 60) className += " win-rate-high";
+                    else if (d.winRate > 40) className += " win-rate-medium";
+                    else className += " win-rate-low";
+                    return className;
+                })
+                .attr("x", d => xScale(d.team))
+                .attr("y", d => yScale(d.winRate))
+                .attr("width", xScale.bandwidth())
+                .attr("height", d => height - yScale(d.winRate))
+                .style("fill", d => {
+                    if (d.winRate > 60) return "#0acf83";
+                    if (d.winRate > 40) return "#ffa500";
+                    return "#ff4655";
+                });
+            
+            // Add win rate labels on bars
+            svg.selectAll(".winrate-label")
+                .data(teamData)
+                .enter()
+                .append("text")
+                .attr("class", "winrate-label")
+                .attr("x", d => xScale(d.team) + xScale.bandwidth() / 2)
+                .attr("y", d => yScale(d.winRate) - 5)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#ece8e1")
+                .text(d => d.winRate.toFixed(1) + "%");
+            
+            bars.on("mouseover", function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`
+                    <strong>${d.team}</strong><br/>
+                    Win Rate: ${d.winRate.toFixed(1)}%<br/>
+                    Won: ${d.won}<br/>
+                    Initiated: ${d.initiated}
+                `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            })
+            .on("click", function(event, d) {
+                // Hide tooltip on click
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", 0);
+                
+              
+                showSmartLoading();
+                
+                setTimeout(() => {
+                    // Update selection
+                    if (currentSelection.type === 'team' && currentSelection.data === d) {
+                        // Deselect if already selected
+                        currentSelection = { type: null, data: null };
+                        tableData = [...filteredData];
+                    } else {
+                        currentSelection = { type: 'team', data: d };
+                        // Filter table to show only this team
+                        tableData = filteredData.filter(item => item.Team === d.team);
+                    }
+                    
+                    // Re-render charts to update selection states
+                    renderEconomyWinRateChart();
+                    renderMapEconomyChart();
+                    renderTeamEconomyChart();
+                    renderEconomyTimelineChart();
+                    renderTable();
+                    
+        
+                    hideSmartLoading();
+                }, 50);
+            });
+        }
+        
+        // Render economy round timeline chart
+        function renderEconomyTimelineChart() {
+            const margin = { top: 20, right: 30, bottom: 80, left: 60 };
+            const width = 500 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+            
+            // Clear existing chart
+            d3.select("#economy-timeline-chart").html("");
+            
+            // Create SVG
+            const svg = d3.select("#economy-timeline-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            // Group data by tournament and calculate overall economy win rate
+            const tournaments = [...new Set(filteredData.map(d => d.Tournament))].sort();
+            
+            const timelineData = [];
+            
+            tournaments.forEach(tournament => {
+                const tournamentRecords = filteredData.filter(d => d.Tournament === tournament);
+                if (tournamentRecords.length === 0) return;
+                
+                const totalInitiated = d3.sum(tournamentRecords, d => +d.Initiated || 0);
+                const totalWon = d3.sum(tournamentRecords, d => +d.Won || 0);
+                const winRate = totalInitiated > 0 ? (totalWon / totalInitiated) * 100 : 0;
+                
+                timelineData.push({
+                    tournament: tournament,
+                    initiated: totalInitiated,
+                    won: totalWon,
+                    winRate: winRate
+                });
+            });
+            
+            if (timelineData.length === 0) {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ece8e1")
+                    .text("No data available");
+                return;
+            }
+            
+            // Create scales
+            const xScale = d3.scalePoint()
+                .domain(timelineData.map(d => d.tournament))
+                .range([0, width]);
+            
+            const yScale = d3.scaleLinear()
+                .domain([0, 100])
+                .range([height, 0])
+                .nice();
+            
+            // Add line
+            const line = d3.line()
+                .x(d => xScale(d.tournament))
+                .y(d => yScale(d.winRate))
+                .curve(d3.curveMonotoneX);
+            
+            svg.append("path")
+                .datum(timelineData)
+                .attr("class", "timeline-line")
+                .attr("d", line);
+            
+            // Add points
+            const points = svg.selectAll(".timeline-point")
+                .data(timelineData)
+                .enter()
+                .append("circle")
+                .attr("class", d => {
+                    let className = "timeline-point";
+                    if (currentSelection.type === 'timeline' && currentSelection.data === d) {
+                        className += " selected";
+                    }
+                    return className;
+                })
+                .attr("cx", d => xScale(d.tournament))
+                .attr("cy", d => yScale(d.winRate))
+                .attr("r", d => {
+                    if (currentSelection.type === 'timeline' && currentSelection.data === d) {
+                        return 8;
+                    }
+                    return 4;
+                })
+                .style("fill", d => {
+                    if (currentSelection.type === 'timeline' && currentSelection.data === d) {
+                        return "#ffa500";
+                    }
+                    return "#ff4655";
+                });
+            
+            // Add X axis with tournament names
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll("text")
+                .attr("transform", "rotate(-45)")
+                .style("text-anchor", "end")
+                .attr("fill", "#ece8e1");
+            
+            // Add Y axis
+            svg.append("g")
+                .call(d3.axisLeft(yScale).tickFormat(d => d + "%"))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -40)
+                .attr("x", -height / 2)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#ece8e1")
+                .text("Win Rate (%)");
+            
+            points.on("mouseover", function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`
+                    <strong>${d.tournament}</strong><br/>
+                    Win Rate: ${d.winRate.toFixed(1)}%<br/>
+                    Won: ${d.won}<br/>
+                    Initiated: ${d.initiated}
+                `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            })
+            .on("click", function(event, d) {
+                // Hide tooltip on click
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", 0);
+                
+                
+                showSmartLoading();
+                
+                setTimeout(() => {
+                    // Update selection
+                    if (currentSelection.type === 'timeline' && currentSelection.data === d) {
+                        // Deselect if already selected
+                        currentSelection = { type: null, data: null };
+                        tableData = [...filteredData];
+                    } else {
+                        currentSelection = { type: 'timeline', data: d };
+                        // Filter table to show only this tournament
+                        tableData = filteredData.filter(item => item.Tournament === d.tournament);
+                    }
+                    
+                    // Re-render charts to update selection states
+                    renderEconomyWinRateChart();
+                    renderMapEconomyChart();
+                    renderTeamEconomyChart();
+                    renderEconomyTimelineChart();
+                    renderTable();
+                    
+                  
+                    hideSmartLoading();
+                }, 50);
+            });
+        }
+        
+        // Render data table
+        function renderTable() {
+            const tableBody = d3.select("#table-body");
+            tableBody.html("");
+            
+            if (tableData.length === 0) {
+                tableBody.append("tr")
+                    .append("td")
+                    .attr("colspan", 8)
+                    .style("text-align", "center")
+                    .text("No matching data");
+                return;
+            }
+            
+            // Limit table rows displayed
+            const displayData = tableData.slice(0, 50);
+            
+            const rows = tableBody.selectAll("tr")
+                .data(displayData)
+                .enter()
+                .append("tr");
+            
+            // Populate table data
+            rows.append("td").text(d => d.Tournament);
+            rows.append("td").text(d => d["Match Name"]);
+            rows.append("td").text(d => d.Map);
+            rows.append("td").text(d => d.Team);
+            rows.append("td").text(d => d.Type);
+            rows.append("td").text(d => d.Initiated);
+            rows.append("td").text(d => d.Won);
+            rows.append("td").html(d => {
+                const initiated = +d.Initiated || 0;
+                const won = +d.Won || 0;
+                const winRate = initiated > 0 ? (won / initiated) * 100 : 0;
+                
+                let className = "rating-medium";
+                if (winRate > 60) className = "rating-high";
+                if (winRate < 40) className = "rating-low";
+                return `<span class="${className}">${winRate.toFixed(1)}%</span>`;
+            });
+        }
+        
+        function loadSampleData() {
+            console.log("Loading sample data...");
+            economyData = [
+                {
+                    Tournament: "Valorant Champions 2021",
+                    Stage: "Group Stage",
+                    "Match Type": "Opening (D)",
+                    "Match Name": "Vision Strikers vs FULL SENSE",
+                    Map: "Haven",
+                    Team: "Vision Strikers",
+                    Type: "Pistol Won",
+                    Initiated: "",
+                    Won: "2"
+                },
+                {
+                    Tournament: "Valorant Champions 2021",
+                    Stage: "Group Stage",
+                    "Match Type": "Opening (D)",
+                    "Match Name": "Vision Strikers vs FULL SENSE",
+                    Map: "Haven",
+                    Team: "Vision Strikers",
+                    Type: "Eco (won)",
+                    Initiated: "3",
+                    Won: "2"
+                },
+                {
+                    Tournament: "Valorant Champions 2021",
+                    Stage: "Group Stage",
+                    "Match Type": "Opening (D)",
+                    "Match Name": "Vision Strikers vs FULL SENSE",
+                    Map: "Haven",
+                    Team: "Vision Strikers",
+                    Type: "$ (won)",
+                    Initiated: "0",
+                    Won: "0"
+                },
+                {
+                    Tournament: "Valorant Champions 2021",
+                    Stage: "Group Stage",
+                    "Match Type": "Opening (D)",
+                    "Match Name": "Vision Strikers vs FULL SENSE",
+                    Map: "Haven",
+                    Team: "Vision Strikers",
+                    Type: "$$ (won)",
+                    Initiated: "3",
+                    Won: "1"
+                },
+                {
+                    Tournament: "Valorant Champions 2021",
+                    Stage: "Group Stage",
+                    "Match Type": "Opening (D)",
+                    "Match Name": "Vision Strikers vs FULL SENSE",
+                    Map: "Haven",
+                    Team: "Vision Strikers",
+                    Type: "$$$ (won)",
+                    Initiated: "12",
+                    Won: "10"
+                }
+            ];
+            
+            filteredData = [...economyData];
+            tableData = [...filteredData];
+            
+            // Initialize filters
+            initializeFilters();
+            
+            // Render charts and table
+            renderCharts();
+            renderTable();
+            
+            hideLoading();
+        }
+        
+        // Initialize the dashboard
+        function initDashboard() {
+            setTimeout(() => {
+            if (document.getElementById('loading-overlay').style.display !== 'none') {
+                console.warn("Loading timeout, forcing hide");
+                hideLoading();
+            }
+        }, 10000);
+            // Add event listener for year filter
+            yearFilter.addEventListener('change', function() {
+                console.log("Year changed to:", this.value);
+                loadData();
+            });
+            
+            // Load initial data
+            loadData();
+        }
+        
+        // Start the dashboard
+        initDashboard();
+    </script>
+</body>
+</html>
